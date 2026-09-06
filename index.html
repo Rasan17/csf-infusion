@@ -1,0 +1,1709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSF Infusion Study - ICP Curve Fitting & Differential Analysis</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js for high-fidelity scientific multi-graph rendering -->
+        <script src="chart.umd.min.js"></script>
+    <script>
+        if (typeof Chart === 'undefined') {
+            document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"><\/script>');
+        }
+    </script>
+    <style>
+        :root {
+            --bg-primary: #0b1120;
+            --bg-secondary: #131d31;
+            --bg-tertiary: #1e293b;
+            --card-bg: rgba(19, 29, 49, 0.75);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-cyan: #06b6d4;
+            --accent-blue: #38bdf8;
+            --accent-indigo: #6366f1;
+            --accent-purple: #a855f7;
+            --accent-emerald: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-rose: #f43f5e;
+            --shadow-glow: 0 10px 25px -5px rgba(6, 182, 212, 0.2);
+            --radius-md: 10px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --card-border: rgba(0, 0, 0, 0.08);
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --shadow-glow: 0 10px 25px -5px rgba(99, 102, 241, 0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 24px 16px 60px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .container {
+            max-width: 1140px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 22px;
+        }
+
+        /* Header Bar */
+        .app-header {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-xl);
+            padding: 22px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .header-title-group h1 {
+            font-size: 23px;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-indigo));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-title-group .subtitle {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            font-weight: 500;
+        }
+
+        .header-title-group .copyright {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 3px;
+            font-weight: 500;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-icon {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-icon:hover {
+            transform: translateY(-1px);
+            background: var(--accent-indigo);
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        /* Patient Meta Bar */
+        .patient-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-lg);
+            padding: 16px 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-group label {
+            font-size: 11.5px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-control {
+            background: var(--bg-primary);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: var(--text-primary);
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-control:focus {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.2);
+        }
+
+        /* Section Cards */
+        .section-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-xl);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .section-title {
+            font-size: 16.5px;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .badge-pill {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 12px;
+            background: rgba(6, 182, 212, 0.15);
+            color: var(--accent-cyan);
+            border: 1px solid var(--accent-cyan);
+        }
+
+        /* Table Styles for Recording ICP */
+        .table-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .table-responsive {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-md);
+            background: var(--bg-secondary);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            text-align: left;
+        }
+
+        thead {
+            position: sticky;
+            top: 0;
+            background: var(--bg-tertiary);
+            z-index: 2;
+        }
+
+        th {
+            padding: 10px 14px;
+            font-size: 11.5px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        td {
+            padding: 8px 14px;
+            border-bottom: 1px solid var(--card-border);
+            color: var(--text-primary);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .table-input {
+            width: 90px;
+            background: var(--bg-primary);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            padding: 6px 10px;
+            color: var(--accent-cyan);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            font-weight: 700;
+            outline: none;
+        }
+
+        .table-input:focus {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.2);
+        }
+
+        .btn-del-row {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 14px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .btn-del-row:hover {
+            color: var(--accent-rose);
+            background: rgba(244, 63, 94, 0.15);
+        }
+
+        /* 3 Graph Grid Layout */
+        .graphs-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        .graph-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            transition: border-color 0.2s;
+        }
+
+        .graph-card:hover {
+            border-color: rgba(6, 182, 212, 0.3);
+        }
+
+        .graph-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .graph-card-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .graph-card-formula {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--accent-blue);
+            background: var(--bg-primary);
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1px solid var(--card-border);
+        }
+
+        .chart-box {
+            position: relative;
+            height: 250px;
+            width: 100%;
+        }
+
+        /* Metric Dashboard Cards */
+        .summary-dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        .metric-card {
+            background: var(--card-bg);
+            border: 1.5px solid var(--card-border);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-card.highlight {
+            border-color: var(--accent-cyan);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .metric-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-main {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+        }
+
+        .metric-number {
+            font-size: 34px;
+            font-weight: 900;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-primary);
+            line-height: 1;
+        }
+
+        .metric-unit {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .metric-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 14px;
+            font-size: 11.5px;
+            font-weight: 700;
+            width: fit-content;
+            margin-top: 4px;
+        }
+
+        .status-normal { background: rgba(16, 185, 129, 0.18); color: var(--accent-emerald); border: 1px solid var(--accent-emerald); }
+        .status-borderline { background: rgba(245, 158, 11, 0.18); color: var(--accent-amber); border: 1px solid var(--accent-amber); }
+        .status-elevated { background: rgba(244, 63, 94, 0.18); color: var(--accent-rose); border: 1px solid var(--accent-rose); }
+
+        /* Action Buttons Row */
+        .actions-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-xl);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .action-buttons-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-indigo));
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 18px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 14px rgba(6, 182, 212, 0.3);
+            transition: all 0.2s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(6, 182, 212, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-tertiary);
+            transform: translateY(-1px);
+        }
+
+        .report-preview {
+            background: var(--bg-primary);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-md);
+            padding: 14px 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--text-primary);
+            line-height: 1.6;
+            white-space: pre-wrap;
+            max-height: 240px;
+            overflow-y: auto;
+        }
+
+        
+        .disclaimer-banner {
+            background: rgba(245, 158, 11, 0.12);
+            border: 1px solid rgba(245, 158, 11, 0.35);
+            border-radius: var(--radius-md);
+            padding: 10px 16px;
+            font-size: 12px;
+            color: var(--accent-amber);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            line-height: 1.4;
+        }
+
+        /* Footer Attribution */
+        .app-footer {
+            margin-top: 20px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 20px;
+            border-top: 1px solid var(--card-border);
+        }
+
+        .footer-author {
+            font-size: 12.5px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .footer-ref {
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.5;
+            max-width: 840px;
+            margin: 0 auto;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--accent-indigo);
+            color: #ffffff;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(6px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+            padding: 16px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-box {
+            background: var(--bg-secondary);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-xl);
+            padding: 28px;
+            max-width: 580px;
+            width: 100%;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 12px;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        @media print {
+            body { background: #fff; color: #000; padding: 0; }
+            .header-actions, .table-toolbar, .action-buttons-row, .btn-icon { display: none !important; }
+            .section-card, .graph-card, .metric-card, .actions-card {
+                border: 1px solid #ccc !important;
+                box-shadow: none !important;
+                background: #fff !important;
+                color: #000 !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- Header -->
+    <header class="app-header">
+        <div class="header-title-group">
+            <h1>🌊 CSF Infusion Study Calculator</h1>
+            <div class="subtitle">Constant Rate Lumbar Infusion Test, ICP Curve Fitting &amp; Differential Analysis</div>
+            <div class="copyright">© Dr G Narenthiran MB ChB BSc(MedSci)(Hons)FEBNS FRCS(SN), 2026; g_narenthiran@hotmail.com</div>
+        </div>
+        <div class="header-actions">
+            <button class="btn-icon" id="theme-toggle" title="Toggle Light/Dark Theme">🌓 Theme</button>
+            <button class="btn-icon" id="about-btn" title="About Software & References">ℹ️ About</button>
+            <button class="btn-icon" id="load-sample-btn" title="Load Clinical Demonstration Sample">📊 Load Sample Data</button>
+        </div>
+    </header>
+
+    <!-- Clinical Disclaimer Banner -->
+    <div class="disclaimer-banner">
+        <span style="font-size: 16px;">⚠️</span>
+        <div>
+            <strong>Disclaimer:</strong> The CSF-infusion calculator should not be used for clinical purposes and the user should verify the calculations.
+        </div>
+    </div>
+
+
+    <!-- Patient Meta Information -->
+    <section class="patient-card">
+        <div class="form-group">
+            <label>Patient ID / Hospital No.</label>
+            <input type="text" id="patient-id" class="form-control" placeholder="e.g. HOSP-789012">
+        </div>
+        <div class="form-group">
+            <label>Clinical Indication</label>
+            <select id="clinical-indication" class="form-control">
+                <option value="Suspected iNPH (Evaluation for Shunt)">Suspected iNPH (Evaluation for Shunt)</option>
+                <option value="Equivocal CSF Tap Test">Equivocal CSF Tap Test</option>
+                <option value="Communicating Hydrocephalus">Communicating Hydrocephalus</option>
+                <option value="Shunt Malfunction Assessment">Shunt Malfunction Assessment</option>
+                <option value="Slit Ventricle / Compliance Study">Slit Ventricle / Compliance Study</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Neurosurgeon / Clinician</label>
+            <input type="text" id="assessor-name" class="form-control" value="Dr G Narenthiran">
+        </div>
+        <div class="form-group">
+            <label>Infusion Rate ($I_c$)</label>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <input type="number" id="infusion-rate" class="form-control" value="1.5" step="0.1" min="0.2" max="5.0" style="width: 100px;">
+                <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">mL/min</span>
+            </div>
+        </div>
+        <div class="form-group">
+            <label style="color: var(--accent-rose);">ICP Safety Threshold</label>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <input type="number" id="safety-threshold" class="form-control" value="30" step="1" min="10" max="100" style="width: 100px; border-color: rgba(244, 63, 94, 0.4); color: var(--accent-rose); font-weight: 700;">
+                <span style="font-size: 13px; font-weight: 600; color: var(--accent-rose);">mmHg</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- TABLE: Time Intervals and Recorded ICP -->
+    <section class="section-card">
+        <div class="section-header">
+            <div class="section-title">
+                <span>⏱️ Time Intervals &amp; ICP Recording Table</span>
+                <span class="badge-pill" id="data-point-count">10 Data Points</span>
+            </div>
+            <div class="table-toolbar">
+                <button class="btn-primary" id="add-row-btn" style="padding: 6px 12px; font-size: 12px;">➕ Add Reading</button>
+                <button class="btn-secondary" id="add-5-rows-btn" style="padding: 6px 12px; font-size: 12px;">➕ Add 5 Readings</button>
+                <button class="btn-secondary" id="clear-table-btn" style="padding: 6px 12px; font-size: 12px;">🗑️ Clear Table</button>
+                <select id="poly-degree" class="form-control" style="width: 170px; padding: 6px 10px; font-size: 12px;">
+                    <option value="auto" selected>Auto Fit (Best Degree)</option>
+                    <option value="4">Quartic Fit (Degree 4)</option>
+                    <option value="3">Cubic Fit (Degree 3)</option>
+                    <option value="5">Quintic Fit (Degree 5)</option>
+                    <option value="6">Sextic Fit (Degree 6)</option>
+                    <option value="2">Quadratic (Degree 2)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table id="icp-table">
+                <thead>
+                    <tr>
+                        <th style="width: 70px;">#</th>
+                        <th>Time Interval (min)</th>
+                        <th>Measured ICP (mmHg)</th>
+                        <th>Phase / Notes</th>
+                        <th style="width: 80px; text-align: center;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                    <!-- Table rows populated dynamically via JS -->
+                </tbody>
+            </table>
+        </div>
+        <div style="font-size: 11.5px; color: var(--text-muted); display: flex; justify-content: space-between;">
+            <span>💡 Tip: Edit any time or ICP value in the table directly to update the curve fit and derivative graphs instantly.</span>
+            <span id="fit-formula-preview" style="font-family: 'JetBrains Mono', monospace; color: var(--accent-cyan);">P(t) = calculating...</span>
+        </div>
+    </section>
+
+    <!-- 3 SCIENTIFIC GRAPHS: ICP vs Time, 1st Derivative, 2nd Derivative -->
+    <section class="graphs-grid">
+        <!-- GRAPH 1: ICP vs Time with Curve Fit Overlay -->
+        <div class="graph-card">
+            <div class="graph-card-header">
+                <div class="graph-card-title">
+                    <span>📈 1. ICP vs. Time with Curve Fitting Line</span>
+                </div>
+                <div class="graph-card-formula" id="graph1-formula">P(t) Fitted Curve</div>
+            </div>
+            <div class="chart-box">
+                <canvas id="chart1"></canvas>
+            </div>
+            <div style="font-size: 11px; color: var(--text-muted); display: flex; justify-content: space-between;">
+                <span>🔴 Discrete Recorded ICP Data Points</span>
+                <span>🔵 Continuous Polynomial Fitted Function P(t)</span>
+            </div>
+        </div>
+
+        <!-- GRAPH 2: 1st Differential (dP/dt) Rate of ICP Rise -->
+        <div class="graph-card">
+            <div class="graph-card-header">
+                <div class="graph-card-title">
+                    <span>⚡ 2. First Derivative: Rate of ICP Change ($dP/dt$)</span>
+                </div>
+                <div class="graph-card-formula" id="graph2-formula">P'(t) = dP/dt [mmHg/min]</div>
+            </div>
+            <div class="chart-box">
+                <canvas id="chart2"></canvas>
+            </div>
+            <div style="font-size: 11px; color: var(--text-muted); display: flex; justify-content: space-between;">
+                <span>Represents the instantaneous velocity / slope of pressure rise. Peak slope marks maximum elastance.</span>
+                <span style="color: var(--accent-emerald);" id="peak-slope-text">Max Slope: -- mmHg/min</span>
+            </div>
+        </div>
+
+        <!-- GRAPH 3: 2nd Differential (d²P/dt²) Acceleration of ICP -->
+        <div class="graph-card">
+            <div class="graph-card-header">
+                <div class="graph-card-title">
+                    <span>🔄 3. Second Derivative: Acceleration of ICP ($d^2P/dt^2$)</span>
+                </div>
+                <div class="graph-card-formula" id="graph3-formula">P''(t) = d²P/dt² [mmHg/min²]</div>
+            </div>
+            <div class="chart-box">
+                <canvas id="chart3"></canvas>
+            </div>
+            <div style="font-size: 11px; color: var(--text-muted); display: flex; justify-content: space-between;">
+                <span>Represents curvature / transition dynamics. Zero-crossing identifies the inflection point (maximum rate of pressure rise).</span>
+                <span style="color: var(--accent-purple);" id="inflection-text">Inflection: -- min</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Hydrodynamic Metrics Dashboard -->
+    <section class="summary-dashboard">
+        <!-- R_out -->
+        <div class="metric-card highlight">
+            <div class="metric-title">Resistance to Outflow ($R_{out}$)</div>
+            <div class="metric-main">
+                <span class="metric-number" id="metric-rout">--</span>
+                <span class="metric-unit">mmHg/(mL/min)</span>
+            </div>
+            <div class="metric-status status-elevated" id="badge-rout">
+                Calculating...
+            </div>
+            <div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 4px;" id="desc-rout">
+                Derived from Plateau ICP ($P_p$), Baseline ($P_0$), and Infusion Rate ($I_c$).
+            </div>
+        </div>
+
+        <!-- Delta P -->
+        <div class="metric-card">
+            <div class="metric-title">Pressure Rise ($\Delta P = P_p - P_0$)</div>
+            <div class="metric-main">
+                <span class="metric-number" id="metric-deltap">--</span>
+                <span class="metric-unit">mmHg</span>
+            </div>
+            <div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 4px;" id="desc-deltap">
+                Net elevation of CSF pressure above baseline under constant infusion.
+            </div>
+        </div>
+
+        <!-- Max dP/dt -->
+        <div class="metric-card">
+            <div class="metric-title">Peak ICP Rate of Rise ($[dP/dt]_{max}$)</div>
+            <div class="metric-main">
+                <span class="metric-number" id="metric-max-slope">--</span>
+                <span class="metric-unit">mmHg/min</span>
+            </div>
+            <div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 4px;" id="desc-max-slope">
+                Peak first derivative value during infusion ramp phase.
+            </div>
+        </div>
+
+        <!-- Conductance -->
+        <div class="metric-card">
+            <div class="metric-title">Outflow Conductance ($C_{out} = 1/R_{out}$)</div>
+            <div class="metric-main">
+                <span class="metric-number" id="metric-cout">--</span>
+                <span class="metric-unit">(mL/min)/mmHg</span>
+            </div>
+            <div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 4px;">
+                Reciprocal of resistance. Normal resorption capacity is &gt; 0.10.
+            </div>
+        </div>
+    </section>
+
+    <!-- Clinical Documentation Summary & Action Buttons -->
+    <section class="actions-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div style="font-size: 15px; font-weight: 700; color: var(--text-primary);">
+                📋 Clinical Documentation Summary
+            </div>
+            <div class="action-buttons-row">
+                <button class="btn-primary" id="copy-btn">📋 Copy Summary</button>
+                <button class="btn-secondary" id="email-btn">✉️ Email Report</button>
+                <button class="btn-secondary" id="print-btn">🖨️ Print / PDF</button>
+            </div>
+        </div>
+        <div class="report-preview" id="report-text"></div>
+    </section>
+
+    <!-- Footer Attribution -->
+    <footer class="app-footer">
+                <div style="font-size: 11.5px; color: var(--accent-amber); font-weight: 500; margin-bottom: 4px;">
+            ⚠️ <strong>Disclaimer:</strong> The CSF-infusion calculator should not be used for clinical purposes and the user should verify the calculations.
+        </div>
+<div class="footer-author">
+            Software Developed by <strong>Dr G Narenthiran</strong> FRCS(SN), Neurosurgery Research Listserv, UK. 
+            <a href="mailto:g_narenthiran@hotmail.com" style="color: var(--accent-cyan); text-decoration: none;">g_narenthiran@hotmail.com</a>
+        </div>
+        <div style="font-size: 12px; font-weight: 600; color: var(--accent-cyan); font-style: italic; margin-bottom: 6px;">
+            Dedicated to my mother Mrs Nirmaladevy Ganesalingam BSc
+        </div>
+        <div class="footer-ref">
+            <strong>Key Clinical References:</strong><br>
+            1. Katzman R, Hussey F. A simple constant-infusion manometric test for measurement of CSF absorption. <em>Neurology</em> 1970;20(6):534-544.<br>
+            2. Marmarou A, Shulman K, Rosende RM. A nonlinear analysis of the cerebrospinal fluid system and intracranial pressure. <em>J Neurosurg</em> 1978;48(3):332-344.<br>
+            3. Czosnyka M, Czosnyka Z, Momjian S, Pickard JD. Cerebrospinal fluid dynamics. <em>Physiol Meas</em> 2004;25(5):R51-R76.<br>
+            4. Boon AJ, Tans JT, Delwel EJ, et al. Dutch normal-pressure hydrocephalus study: prediction of outcome after shunting by resistance to outflow of cerebrospinal fluid. <em>J Neurosurg</em> 1997;87(5):687-693.
+        </div>
+    </footer>
+</div>
+
+<!-- Modal Dialog for About -->
+<div class="modal-overlay" id="about-modal">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3 class="modal-title">About CSF Infusion Study Calculator</h3>
+            <button class="btn-icon" id="close-about-btn" style="padding: 4px 10px;">✕</button>
+        </div>
+        <div style="font-size: 13.5px; line-height: 1.6; color: var(--text-primary);">
+            <p style="margin-bottom: 8px;">
+                <strong>Software Developed by:</strong><br>
+                Dr G Narenthiran FRCS(SN)<br>
+                Neurosurgery Research Listserv, UK<br>
+                Email: <a href="mailto:g_narenthiran@hotmail.com" style="color: var(--accent-cyan);">g_narenthiran@hotmail.com</a>
+            </p>
+            <p style="margin-bottom: 12px; font-size: 12.5px; font-weight: 600; color: var(--accent-indigo); font-style: italic;">
+                Dedicated to my mother Mrs Nirmaladevy Ganesalingam BSc
+            </p>
+            <hr style="border: none; border-top: 1px solid var(--card-border); margin: 12px 0;">
+                        <div style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 10px 12px; font-size: 11.5px; color: var(--accent-amber); margin-bottom: 12px; line-height: 1.4;">
+                ⚠️ <strong>Disclaimer:</strong> The CSF-infusion calculator should not be used for clinical purposes and the user should verify the calculations.
+            </div>
+<p style="font-size: 12px; color: var(--text-secondary);">
+                <strong>Differential Analysis of the Infusion Curve:</strong><br>
+                • <strong>Curve Fitting:</strong> Smooth mathematical polynomial representation $P(t)$ fitted to recorded clinical discrete intervals.<br>
+                • <strong>First Derivative ($dP/dt$):</strong> Identifies the instantaneous rate of pressure change. Peak $dP/dt$ occurs at the transition point when compliance is stressed.<br>
+                • <strong>Second Derivative ($d^2P/dt^2$):</strong> Identifies inflection dynamics ($d^2P/dt^2 = 0$), delineating the transition from rapid expansion to compensatory resorption plateau.<br>
+                • <strong>Resistance to Outflow ($R_{out}$):</strong> $(P_p - P_0) / I_c$. Values &gt; 12 mmHg/(mL/min) predict positive response to CSF diversion.
+            </p>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast">Summary copied to clipboard!</div>
+
+<script>
+    
+    // Custom Chart.js Plugin to Draw a Clear Plateau Vertical Reference Line & Badge on Every Graph
+    const plateauMarkerPlugin = {
+        id: 'plateauMarker',
+        afterDraw: (chart) => {
+            const opts = chart.config.options?.plugins?.plateauMarker;
+            if (!opts || opts.time === undefined || opts.time === null || isNaN(opts.time)) return;
+            const ctx = chart.ctx;
+            const xAxis = chart.scales.x;
+            const yAxis = chart.scales.y;
+            const xPos = xAxis.getPixelForValue(opts.time);
+            if (xPos < xAxis.left || xPos > xAxis.right) return;
+
+            ctx.save();
+            // Vertical dashed line
+            ctx.setLineDash([5, 4]);
+            ctx.strokeStyle = '#f43f5e';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(xPos, yAxis.top);
+            ctx.lineTo(xPos, yAxis.bottom);
+            ctx.stroke();
+
+            // Plateau Badge
+            ctx.setLineDash([]);
+            const labelText = opts.label || `🚩 Plateau: ${opts.time.toFixed(1)} min`;
+            ctx.font = 'bold 10.5px JetBrains Mono, monospace';
+            const textWidth = ctx.measureText(labelText).width;
+            const padX = 7;
+            const boxW = textWidth + padX * 2;
+            const boxH = 20;
+            let boxX = xPos - boxW / 2;
+            if (boxX < xAxis.left + 2) boxX = xAxis.left + 2;
+            if (boxX + boxW > xAxis.right - 2) boxX = xAxis.right - boxW - 2;
+            const boxY = yAxis.top + 6;
+
+            // Background pill
+            ctx.fillStyle = 'rgba(244, 63, 94, 0.95)';
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+            ctx.shadowBlur = 6;
+            ctx.beginPath();
+            ctx.roundRect(boxX, boxY, boxW, boxH, 5);
+            ctx.fill();
+
+            // Text
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(labelText, boxX + boxW / 2, boxY + boxH / 2);
+            ctx.restore();
+        }
+    };
+    if (typeof Chart !== 'undefined') {
+        Chart.register(plateauMarkerPlugin);
+    }
+
+    // Clinical Sample Dataset (Standard Lumbar Infusion Protocol: 0 to 18 minutes)
+    const defaultData = [
+        { time: 0, icp: 11.0, note: "Baseline (Resting ICP)" },
+        { time: 2, icp: 11.5, note: "Infusion Started (1.5 mL/min)" },
+        { time: 4, icp: 15.0, note: "Early Ramp Phase" },
+        { time: 6, icp: 21.0, note: "Steep Ramp Phase" },
+        { time: 8, icp: 28.5, note: "Compliance Strain" },
+        { time: 10, icp: 33.0, note: "Approaching Plateau" },
+        { time: 12, icp: 35.5, note: "Steady-State Plateau" },
+        { time: 14, icp: 36.0, note: "Plateau Phase" },
+        { time: 16, icp: 36.2, note: "Plateau Phase" },
+        { time: 18, icp: 36.0, note: "Infusion Stopped" }
+    ];
+
+    let dataset = JSON.parse(JSON.stringify(defaultData));
+
+    // Chart instances
+    let chart1Instance = null;
+    let chart2Instance = null;
+    let chart3Instance = null;
+
+    // Polynomial Regression Fit Engine (Least Squares with Gauss-Jordan)
+    function fitPolynomial(points, degree) {
+        const n = points.length;
+        if (n <= degree) {
+            degree = Math.max(1, n - 1);
+        }
+        const m = degree + 1;
+
+        // Normal equations: X^T * X * C = X^T * Y
+        const A = Array.from({ length: m }, () => new Array(m).fill(0));
+        const B = new Array(m).fill(0);
+
+        for (let i = 0; i < m; i++) {
+            for (let j = 0; j < m; j++) {
+                let sum = 0;
+                for (let k = 0; k < n; k++) {
+                    sum += Math.pow(points[k].time, i + j);
+                }
+                A[i][j] = sum;
+            }
+            let sumY = 0;
+            for (let k = 0; k < n; k++) {
+                sumY += points[k].icp * Math.pow(points[k].time, i);
+            }
+            B[i] = sumY;
+        }
+
+        // Gaussian elimination with partial pivoting
+        for (let i = 0; i < m; i++) {
+            let maxRow = i;
+            for (let k = i + 1; k < m; k++) {
+                if (Math.abs(A[k][i]) > Math.abs(A[maxRow][i])) {
+                    maxRow = k;
+                }
+            }
+            [A[i], A[maxRow]] = [A[maxRow], A[i]];
+            [B[i], B[maxRow]] = [B[maxRow], B[i]];
+
+            if (Math.abs(A[i][i]) < 1e-12) continue;
+
+            for (let k = i + 1; k < m; k++) {
+                const factor = A[k][i] / A[i][i];
+                for (let j = i; j < m; j++) {
+                    A[k][j] -= factor * A[i][j];
+                }
+                B[k] -= factor * B[i];
+            }
+        }
+
+        // Back substitution
+        const coeffs = new Array(m).fill(0);
+        for (let i = m - 1; i >= 0; i--) {
+            let sum = 0;
+            for (let j = i + 1; j < m; j++) {
+                sum += A[i][j] * coeffs[j];
+            }
+            coeffs[i] = (B[i] - sum) / (A[i][i] || 1);
+        }
+
+        return coeffs; // C[0] + C[1]*t + C[2]*t^2 + ...
+    }
+
+    // Evaluate polynomial and derivatives
+    function evalPoly(coeffs, t) {
+        let val = 0;
+        for (let i = 0; i < coeffs.length; i++) {
+            val += coeffs[i] * Math.pow(t, i);
+        }
+        return val;
+    }
+
+    function evalFirstDeriv(coeffs, t) {
+        let val = 0;
+        for (let i = 1; i < coeffs.length; i++) {
+            val += i * coeffs[i] * Math.pow(t, i - 1);
+        }
+        return val;
+    }
+
+    function evalSecondDeriv(coeffs, t) {
+        let val = 0;
+        for (let i = 2; i < coeffs.length; i++) {
+            val += i * (i - 1) * coeffs[i] * Math.pow(t, i - 2);
+        }
+        return val;
+    }
+
+    // Format polynomial formula string
+    function formatFormula(coeffs) {
+        let terms = [];
+        for (let i = coeffs.length - 1; i >= 0; i--) {
+            const c = coeffs[i];
+            if (Math.abs(c) < 1e-5) continue;
+            const sign = c < 0 ? "-" : (terms.length > 0 ? "+" : "");
+            const absC = Math.abs(c).toFixed(Math.abs(c) < 0.01 ? 4 : 2);
+            if (i === 0) terms.push(`${sign} ${absC}`);
+            else if (i === 1) terms.push(`${sign} ${absC}t`);
+            else terms.push(`${sign} ${absC}t^${i}`);
+        }
+        return "P(t) = " + (terms.length > 0 ? terms.join(" ") : "0");
+    }
+
+    // Render Table
+    function renderTable() {
+        const tbody = document.getElementById('table-body');
+        tbody.innerHTML = '';
+        dataset.forEach((row, idx) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="color: var(--text-muted); font-family: 'JetBrains Mono', monospace;">${idx + 1}</td>
+                <td>
+                    <input type="number" class="table-input" value="${row.time}" step="0.5" data-idx="${idx}" data-field="time">
+                </td>
+                <td>
+                    <input type="number" class="table-input" value="${row.icp}" step="0.5" data-idx="${idx}" data-field="icp">
+                </td>
+                <td>
+                    <input type="text" class="form-control" style="padding: 4px 8px; font-size: 12px;" value="${row.note || ''}" data-idx="${idx}" data-field="note">
+                </td>
+                <td style="text-align: center;">
+                    <button class="btn-del-row" data-idx="${idx}" title="Delete Interval">✕</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById('data-point-count').textContent = `${dataset.length} Data Points`;
+
+        // Event listeners for inline edits
+        tbody.querySelectorAll('.table-input, input[type="text"]').forEach(input => {
+            input.addEventListener('input', (e) => {
+                const idx = parseInt(e.target.getAttribute('data-idx'));
+                const field = e.target.getAttribute('data-field');
+                if (field === 'time' || field === 'icp') {
+                    dataset[idx][field] = parseFloat(e.target.value) || 0;
+                } else {
+                    dataset[idx][field] = e.target.value;
+                }
+                updateAll();
+            });
+        });
+
+        tbody.querySelectorAll('.btn-del-row').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const idx = parseInt(e.target.getAttribute('data-idx'));
+                if (dataset.length > 3) {
+                    dataset.splice(idx, 1);
+                    renderTable();
+                    updateAll();
+                } else {
+                    showToast("At least 3 data points are required for curve fitting.");
+                }
+            });
+        });
+    }
+
+    // Main Update Pipeline
+    function updateAll() {
+        if (dataset.length < 2) return;
+
+        // Filter valid numeric entries & sort strictly by time
+        dataset = dataset.filter(d => !isNaN(d.time) && !isNaN(d.icp));
+        dataset.sort((a, b) => a.time - b.time);
+
+        const degChoice = document.getElementById('poly-degree').value;
+        let degree = 4;
+        if (degChoice === 'auto') {
+            if (dataset.length >= 10) degree = 4;
+            else if (dataset.length >= 7) degree = 3;
+            else if (dataset.length >= 4) degree = 3;
+            else degree = Math.max(1, dataset.length - 1);
+        } else {
+            degree = parseInt(degChoice) || 4;
+        }
+        degree = Math.min(degree, Math.max(1, dataset.length - 1));
+
+        const coeffs = fitPolynomial(dataset, degree);
+
+        // Preview formula
+        const formulaStr = formatFormula(coeffs);
+        document.getElementById('fit-formula-preview').textContent = formulaStr;
+        document.getElementById('graph1-formula').textContent = formulaStr;
+
+        // Generate fine evaluation curve across full time span (200 sample points)
+        const tMin = dataset[0].time;
+        const tMax = dataset[dataset.length - 1].time;
+        const numEvalPoints = Math.max(150, dataset.length * 15);
+        const step = (tMax - tMin) / numEvalPoints || 0.1;
+
+        const fitPoints = [];
+        const deriv1Points = [];
+        const deriv2Points = [];
+
+        let maxSlope = -Infinity;
+        let maxSlopeTime = tMin;
+        let inflectionTime = null;
+        let prevDeriv2 = null;
+
+        for (let t = tMin; t <= tMax + 0.0001; t += step) {
+            const p = evalPoly(coeffs, t);
+            const dp = evalFirstDeriv(coeffs, t);
+            const d2p = evalSecondDeriv(coeffs, t);
+
+            fitPoints.push({ x: Number(t.toFixed(2)), y: Number(p.toFixed(2)) });
+            deriv1Points.push({ x: Number(t.toFixed(2)), y: Number(dp.toFixed(3)) });
+            deriv2Points.push({ x: Number(t.toFixed(2)), y: Number(d2p.toFixed(4)) });
+
+            if (dp > maxSlope) {
+                maxSlope = dp;
+                maxSlopeTime = t;
+            }
+
+            // Zero-crossing check for 2nd derivative (inflection point)
+            if (prevDeriv2 !== null && ((prevDeriv2 > 0 && d2p <= 0) || (prevDeriv2 < 0 && d2p >= 0))) {
+                if (inflectionTime === null) inflectionTime = t;
+            }
+            prevDeriv2 = d2p;
+        }
+
+        // Discrete scatter points
+        const scatterPoints = dataset.map(d => ({ x: d.time, y: d.icp }));
+
+        // Detect Plateau Point (Time t where plateau pressure is reached)
+        // 1. Locate peak recorded ICP
+        let maxRecordedIcp = -Infinity;
+        let tPlateau = tMax;
+        dataset.forEach(d => {
+            if (d.icp > maxRecordedIcp) {
+                maxRecordedIcp = d.icp;
+                tPlateau = d.time;
+            }
+        });
+
+        // 2. Refine using fitted curve: first time after max slope where dP/dt drops below 0.3 mmHg/min
+        // or pressure reaches 97% of maximum fitted pressure
+        let maxFitP = Math.max(...fitPoints.map(p => p.y));
+        let plateauCandidate = null;
+        for (let i = 0; i < fitPoints.length; i++) {
+            if (fitPoints[i].x >= maxSlopeTime) {
+                const dp = deriv1Points[i].y;
+                if (dp <= 0.35 || fitPoints[i].y >= 0.97 * maxFitP) {
+                    plateauCandidate = fitPoints[i].x;
+                    break;
+                }
+            }
+        }
+        if (plateauCandidate !== null) {
+            tPlateau = plateauCandidate;
+        }
+
+        const plateauPressure = evalPoly(coeffs, tPlateau);
+
+        // Safety Threshold
+        const safetyThreshold = parseFloat(document.getElementById('safety-threshold').value) || 30;
+
+        // Update Charts with marked Plateau and Safety Threshold
+        renderCharts(scatterPoints, fitPoints, deriv1Points, deriv2Points, tPlateau, plateauPressure, safetyThreshold);
+
+        // Update Hydrodynamics Metrics
+        calculateHydrodynamics(dataset, maxSlope, maxSlopeTime, inflectionTime, tPlateau, plateauPressure, safetyThreshold);
+    }
+
+    function renderCharts(scatterData, fitData, deriv1Data, deriv2Data, tPlateau, pPlateau, safetyThreshold) {
+        if (typeof Chart === 'undefined') {
+            console.error("Chart.js is not loaded yet.");
+            return;
+        }
+
+        const tMin = scatterData.length > 0 ? Math.min(...scatterData.map(d => d.x)) : 0;
+        const tMax = scatterData.length > 0 ? Math.max(...scatterData.map(d => d.x)) : 20;
+        // Find plateau points on derivatives
+        const deriv1AtPlateau = deriv1Data.reduce((prev, curr) => Math.abs(curr.x - tPlateau) < Math.abs(prev.x - tPlateau) ? curr : prev, deriv1Data[0]);
+        const deriv2AtPlateau = deriv2Data.reduce((prev, curr) => Math.abs(curr.x - tPlateau) < Math.abs(prev.x - tPlateau) ? curr : prev, deriv2Data[0]);
+        const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+        const gridColor = isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)';
+        const textColor = isDark ? '#94a3b8' : '#475569';
+
+        const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 300 },
+            plugins: {
+                legend: {
+                    labels: { color: textColor, font: { family: 'Inter', size: 11, weight: '600' } }
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    titleFont: { family: 'JetBrains Mono' },
+                    bodyFont: { family: 'JetBrains Mono' }
+                }
+            },
+            scales: {
+                x: {
+                    type: 'linear',
+                    min: tMin,
+                    max: tMax,
+                    grid: { color: gridColor },
+                    ticks: { color: textColor, font: { family: 'JetBrains Mono', size: 10 } },
+                    title: { display: true, text: 'Time (minutes)', color: textColor, font: { size: 11, weight: '600' } }
+                },
+                y: {
+                    grid: { color: gridColor },
+                    ticks: { color: textColor, font: { family: 'JetBrains Mono', size: 10 } }
+                }
+            }
+        };
+
+        // --- CHART 1: ICP vs Time + Curve Fit ---
+        const ctx1 = document.getElementById('chart1').getContext('2d');
+        if (chart1Instance) chart1Instance.destroy();
+        chart1Instance = new Chart(ctx1, {
+            type: 'scatter',
+            data: {
+                datasets: [
+                    {
+                        label: 'Recorded ICP (mmHg)',
+                        data: scatterData,
+                        backgroundColor: '#f43f5e',
+                        borderColor: '#ffffff',
+                        borderWidth: 1.5,
+                        pointRadius: 5.5,
+                        pointHoverRadius: 7.5,
+                        showLine: false,
+                        order: 1
+                    },
+                    {
+                        label: 'Fitted Curve P(t)',
+                        data: fitData,
+                        type: 'line',
+                        borderColor: '#06b6d4',
+                        backgroundColor: 'rgba(6, 182, 212, 0.12)',
+                        borderWidth: 2.5,
+                        fill: true,
+                        pointRadius: 0,
+                        tension: 0.1,
+                        order: 2
+                    },
+                    {
+                        label: `Plateau Reached: ${pPlateau.toFixed(1)} mmHg at t=${tPlateau.toFixed(1)} min`,
+                        data: [{ x: tPlateau, y: pPlateau }],
+                        backgroundColor: '#f43f5e',
+                        borderColor: '#ffffff',
+                        borderWidth: 2,
+                        pointRadius: 8,
+                        pointHoverRadius: 10,
+                        pointStyle: 'rectRot',
+                        showLine: false,
+                        order: 0
+                    },
+                    {
+                        label: `Safety Threshold (${safetyThreshold} mmHg)`,
+                        data: [
+                            { x: tMin, y: safetyThreshold },
+                            { x: tMax, y: safetyThreshold }
+                        ],
+                        type: 'line',
+                        borderColor: '#ef4444',
+                        borderWidth: 2,
+                        borderDash: [6, 4],
+                        pointRadius: 0,
+                        fill: false,
+                        order: 0
+                    }
+                ]
+            },
+            options: {
+                ...commonOptions,
+                plugins: {
+                    ...commonOptions.plugins,
+                    plateauMarker: {
+                        time: tPlateau,
+                        label: `🚩 Plateau Reached: ${pPlateau.toFixed(1)} mmHg (t=${tPlateau.toFixed(1)}m)`
+                    }
+                },
+                scales: {
+                    ...commonOptions.scales,
+                    y: {
+                        ...commonOptions.scales.y,
+                        suggestedMax: Math.max(safetyThreshold + 5, ...scatterData.map(d => d.y), ...fitData.map(d => d.y)),
+                        title: { display: true, text: 'ICP (mmHg)', color: textColor, font: { size: 11, weight: '600' } }
+                    }
+                }
+            }
+        });
+
+        // --- CHART 2: 1st Derivative (dP/dt) ---
+        const ctx2 = document.getElementById('chart2').getContext('2d');
+        if (chart2Instance) chart2Instance.destroy();
+        chart2Instance = new Chart(ctx2, {
+            type: 'line',
+            data: {
+                datasets: [
+                    {
+                        label: 'dP/dt - Rate of ICP Rise (mmHg/min)',
+                        data: deriv1Data,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                        borderWidth: 2.5,
+                        fill: true,
+                        pointRadius: 0,
+                        tension: 0.2,
+                        order: 2
+                    },
+                    {
+                        label: `Plateau Level: dP/dt ≈ ${deriv1AtPlateau.y.toFixed(2)} mmHg/min`,
+                        data: [{ x: tPlateau, y: deriv1AtPlateau.y }],
+                        backgroundColor: '#f43f5e',
+                        borderColor: '#ffffff',
+                        borderWidth: 2,
+                        pointRadius: 8,
+                        pointHoverRadius: 10,
+                        pointStyle: 'rectRot',
+                        showLine: false,
+                        order: 1
+                    }
+                ]
+            },
+            options: {
+                ...commonOptions,
+                plugins: {
+                    ...commonOptions.plugins,
+                    plateauMarker: {
+                        time: tPlateau,
+                        label: `🚩 Plateau Reached: dP/dt ≈ ${deriv1AtPlateau.y.toFixed(2)} (t=${tPlateau.toFixed(1)}m)`
+                    }
+                },
+                scales: {
+                    ...commonOptions.scales,
+                    y: {
+                        ...commonOptions.scales.y,
+                        title: { display: true, text: 'dP/dt (mmHg/min)', color: textColor, font: { size: 11, weight: '600' } }
+                    }
+                }
+            }
+        });
+
+        // --- CHART 3: 2nd Derivative (d²P/dt²) ---
+        const ctx3 = document.getElementById('chart3').getContext('2d');
+        if (chart3Instance) chart3Instance.destroy();
+        chart3Instance = new Chart(ctx3, {
+            type: 'line',
+            data: {
+                datasets: [
+                    {
+                        label: 'd²P/dt² - Acceleration of ICP (mmHg/min²)',
+                        data: deriv2Data,
+                        borderColor: '#a855f7',
+                        backgroundColor: 'rgba(168, 85, 247, 0.12)',
+                        borderWidth: 2.5,
+                        fill: true,
+                        pointRadius: 0,
+                        tension: 0.2,
+                        order: 2
+                    },
+                    {
+                        label: `Plateau Level: d²P/dt² ≈ ${deriv2AtPlateau.y.toFixed(3)} mmHg/min²`,
+                        data: [{ x: tPlateau, y: deriv2AtPlateau.y }],
+                        backgroundColor: '#f43f5e',
+                        borderColor: '#ffffff',
+                        borderWidth: 2,
+                        pointRadius: 8,
+                        pointHoverRadius: 10,
+                        pointStyle: 'rectRot',
+                        showLine: false,
+                        order: 1
+                    }
+                ]
+            },
+            options: {
+                ...commonOptions,
+                plugins: {
+                    ...commonOptions.plugins,
+                    plateauMarker: {
+                        time: tPlateau,
+                        label: `🚩 Plateau Reached: d²P/dt² ≈ ${deriv2AtPlateau.y.toFixed(3)} (t=${tPlateau.toFixed(1)}m)`
+                    }
+                },
+                scales: {
+                    ...commonOptions.scales,
+                    y: {
+                        ...commonOptions.scales.y,
+                        title: { display: true, text: 'd²P/dt² (mmHg/min²)', color: textColor, font: { size: 11, weight: '600' } }
+                    }
+                }
+            }
+        });
+    }
+
+    function calculateHydrodynamics(data, maxSlope, maxSlopeTime, inflectionTime, tPlateau, pPlateau, safetyThreshold) {
+        // Baseline P0 is the first data point (or min of initial points)
+        const p0 = data[0].icp;
+        // Plateau Pp is the maximum recorded ICP during steady-state
+        const pp = Math.max(...data.map(d => d.icp));
+        const deltaP = pp - p0;
+        const ic = parseFloat(document.getElementById('infusion-rate').value) || 1.5;
+
+        const rOut = ic > 0 ? (deltaP / ic) : 0;
+        const cOut = rOut > 0 ? (1 / rOut) : 0;
+
+        // Update dashboard metrics
+        document.getElementById('metric-rout').textContent = rOut.toFixed(2);
+        document.getElementById('metric-deltap').textContent = deltaP.toFixed(1);
+        document.getElementById('metric-cout').textContent = cOut.toFixed(3);
+        document.getElementById('metric-max-slope').textContent = maxSlope > 0 ? maxSlope.toFixed(2) : '--';
+        document.getElementById('peak-slope-text').textContent = `Max Slope: ${maxSlope.toFixed(2)} mmHg/min (at t = ${maxSlopeTime.toFixed(1)} min)`;
+
+        const inflStr = inflectionTime !== null ? `${inflectionTime.toFixed(1)} min` : 'Not detected';
+        document.getElementById('inflection-text').textContent = `Inflection Point: ${inflStr}`;
+
+        const badge = document.getElementById('badge-rout');
+        const desc = document.getElementById('desc-rout');
+        badge.className = 'metric-status';
+
+        if (rOut < 10) {
+            badge.classList.add('status-normal');
+            badge.textContent = '✓ Normal Outflow Resistance';
+            desc.innerHTML = `R<sub>out</sub> &lt; 10 mmHg/(mL/min) is within normal physiologic limits. Low probability of shunt benefit.`;
+        } else if (rOut <= 12) {
+            badge.classList.add('status-borderline');
+            badge.textContent = '⚠️ Borderline Elevation';
+            desc.innerHTML = `R<sub>out</sub> 10–12 mmHg/(mL/min) indicates borderline resorption impairment. Correlate with tap test &amp; DESH imaging.`;
+        } else {
+            badge.classList.add('status-elevated');
+            badge.textContent = '🚨 Pathological / Shunt Candidate';
+            desc.innerHTML = `R<sub>out</sub> &gt; 12 mmHg/(mL/min) demonstrates impaired resorption and high likelihood of clinical response following shunt placement.`;
+        }
+
+        // Generate clinical report text
+        generateReportText(p0, pp, deltaP, ic, rOut, cOut, maxSlope, maxSlopeTime, inflStr, tPlateau, pPlateau, safetyThreshold);
+    }
+
+    function generateReportText(p0, pp, deltaP, ic, rOut, cOut, maxSlope, maxSlopeTime, inflStr, tPlateau, pPlateau, safetyThreshold) {
+        const patientId = document.getElementById('patient-id').value.trim() || 'N/A';
+        const indication = document.getElementById('clinical-indication').value;
+        const assessor = document.getElementById('assessor-name').value.trim() || 'Dr G Narenthiran';
+        const date = new Date().toISOString().split('T')[0];
+
+        let interp = "";
+        if (rOut < 10) interp = "NORMAL: R_out < 10 mmHg/(mL/min). Normal CSF resorption.";
+        else if (rOut <= 12) interp = "BORDERLINE: R_out 10-12 mmHg/(mL/min). Equivocal outflow resistance.";
+        else interp = "PATHOLOGICAL: R_out > 12 mmHg/(mL/min). High probability of shunt responsiveness (Dutch NPH Study criteria).";
+
+        const tableSummary = dataset.map(d => `  • t = ${String(d.time).padStart(4, ' ')} min : ICP = ${String(d.icp).padStart(5, ' ')} mmHg  [${d.note || 'Recorded'}]`).join('\n');
+
+        const report = `========================================================
+CSF INFUSION STUDY & DIFFERENTIAL ANALYSIS REPORT
+Constant Rate Lumbar Infusion Test & ICP Dynamics
+========================================================
+Date of Study:        ${date}
+Patient ID:           ${patientId}
+Clinical Indication:  ${indication}
+Clinician / Assessor: ${assessor}
+
+--------------------------------------------------------
+RECORDED TIME INTERVALS & MEASURED ICP:
+--------------------------------------------------------
+${tableSummary}
+
+--------------------------------------------------------
+CURVE FITTING & DIFFERENTIAL ANALYSIS:
+--------------------------------------------------------
+• Mathematical Fit Model: ${document.getElementById('fit-formula-preview').textContent}
+• Baseline ICP (P_0):     ${p0.toFixed(1)} mmHg
+• Plateau ICP (P_p):      ${pp.toFixed(1)} mmHg (reached at t = ${tPlateau.toFixed(1)} min)
+• Pressure Rise (ΔP):     ${deltaP.toFixed(1)} mmHg
+• Infusion Rate (I_c):    ${ic.toFixed(1)} mL/min
+• ICP Safety Threshold:   ${safetyThreshold.toFixed(1)} mmHg [${pp > safetyThreshold ? 'EXCEEDED' : 'WITHIN LIMIT'}]
+• Peak ICP Slope (dP/dt): ${maxSlope.toFixed(2)} mmHg/min (at t = ${maxSlopeTime.toFixed(1)} min)
+• Inflection (d²P/dt²=0): ${inflStr}
+
+--------------------------------------------------------
+CSF HYDRODYNAMIC QUANTIFICATION:
+--------------------------------------------------------
+• Resistance to Outflow (R_out): ${rOut.toFixed(2)} mmHg/(mL/min)
+• Outflow Conductance (C_out):   ${cOut.toFixed(3)} (mL/min)/mmHg
+
+CLINICAL INTERPRETATION:
+${interp}
+
+CRITERIA NOTE:
+Resistance to CSF Outflow (R_out) > 12 mmHg/(mL/min) is an established
+threshold associated with positive clinical outcome following shunt surgery
+in patients with suspected idiopathic normal pressure hydrocephalus
+(Katzman 1970, Marmarou 1978, Boon et al. 1997, Czosnyka et al. 2004).
+
+Disclaimer: The CSF-infusion calculator should not be used for clinical purposes and the user should verify the calculations.
+
+Developed by Dr G Narenthiran FRCS(SN), Neurosurgery Research Listserv, UK; g_narenthiran@hotmail.com
+========================================================`;
+
+        document.getElementById('report-text').textContent = report;
+    }
+
+    // UI Listeners
+    document.getElementById('add-row-btn').addEventListener('click', () => {
+        const lastTime = dataset.length > 0 ? dataset[dataset.length - 1].time : 0;
+        const lastIcp = dataset.length > 0 ? dataset[dataset.length - 1].icp : 10;
+        dataset.push({ time: Number((lastTime + 2).toFixed(1)), icp: Number((lastIcp).toFixed(1)), note: "Reading" });
+        renderTable();
+        updateAll();
+        showToast("Added reading interval at t = " + Number((lastTime + 2).toFixed(1)) + " min");
+        // Scroll table to bottom
+        const tableContainer = document.querySelector('.table-responsive');
+        if (tableContainer) tableContainer.scrollTop = tableContainer.scrollHeight;
+    });
+
+    document.getElementById('add-5-rows-btn').addEventListener('click', () => {
+        let lastTime = dataset.length > 0 ? dataset[dataset.length - 1].time : 0;
+        let lastIcp = dataset.length > 0 ? dataset[dataset.length - 1].icp : 10;
+        for (let k = 1; k <= 5; k++) {
+            lastTime = Number((lastTime + 2).toFixed(1));
+            dataset.push({ time: lastTime, icp: Number((lastIcp).toFixed(1)), note: "Reading" });
+        }
+        renderTable();
+        updateAll();
+        showToast("Added 5 additional reading intervals (up to t = " + lastTime + " min)");
+        const tableContainer = document.querySelector('.table-responsive');
+        if (tableContainer) tableContainer.scrollTop = tableContainer.scrollHeight;
+    });
+
+    document.getElementById('clear-table-btn').addEventListener('click', () => {
+        if (confirm("Reset table to initial baseline point?")) {
+            dataset = [
+                { time: 0, icp: 12.0, note: "Baseline P0" },
+                { time: 5, icp: 20.0, note: "Infusion Ramp" },
+                { time: 10, icp: 34.0, note: "Plateau Pp" }
+            ];
+            renderTable();
+            updateAll();
+            showToast("Table reset");
+        }
+    });
+
+    document.getElementById('load-sample-btn').addEventListener('click', () => {
+        dataset = JSON.parse(JSON.stringify(defaultData));
+        renderTable();
+        updateAll();
+        showToast("Standard clinical sample dataset loaded");
+    });
+
+    document.getElementById('poly-degree').addEventListener('change', () => {
+        updateAll();
+    });
+
+    document.getElementById('infusion-rate').addEventListener('input', () => {
+        updateAll();
+    });
+
+    document.getElementById('safety-threshold').addEventListener('input', () => {
+        updateAll();
+    });
+
+    ['patient-id', 'clinical-indication', 'assessor-name'].forEach(id => {
+        document.getElementById(id).addEventListener('input', updateAll);
+    });
+
+    // Theme Toggle
+    document.getElementById('theme-toggle').addEventListener('click', () => {
+        const current = document.documentElement.getAttribute('data-theme');
+        const next = current === 'light' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', next);
+        updateAll();
+    });
+
+    // Copy to clipboard
+    document.getElementById('copy-btn').addEventListener('click', () => {
+        const text = document.getElementById('report-text').textContent;
+        navigator.clipboard.writeText(text).then(() => {
+            showToast("✓ Clinical report copied to clipboard!");
+        });
+    });
+
+    // Email Button
+    document.getElementById('email-btn').addEventListener('click', () => {
+        const patientId = document.getElementById('patient-id').value.trim() || 'Patient';
+        const rOut = document.getElementById('metric-rout').textContent;
+        const subject = encodeURIComponent(`CSF Infusion Study & Differential Analysis - ${patientId} - Rout: ${rOut}`);
+        const body = encodeURIComponent(document.getElementById('report-text').textContent);
+        window.location.href = `mailto:?subject=${subject}&body=${body}`;
+    });
+
+    // Print Button
+    document.getElementById('print-btn').addEventListener('click', () => {
+        window.print();
+    });
+
+    // About Modal
+    const modal = document.getElementById('about-modal');
+    document.getElementById('about-btn').addEventListener('click', () => {
+        modal.classList.add('active');
+    });
+    document.getElementById('close-about-btn').addEventListener('click', () => {
+        modal.classList.remove('active');
+    });
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.classList.remove('active');
+    });
+
+    function showToast(msg) {
+        const toast = document.getElementById('toast');
+        toast.textContent = msg;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // Initialize application
+    renderTable();
+    updateAll();
+</script>
+
+</body>
+</html>
